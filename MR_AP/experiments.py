@@ -38,8 +38,9 @@ def run_comparison(n_samples = 1500, seed=0):
     # ============
     # Set up cluster parameters
     # ============
-    plt.figure(figsize=(2 * 2 + 3, 12.5))
-    plt.subplots_adjust(left=.02, right=.98, bottom=.001, top=.96, wspace=.05,
+    plt.figure(figsize=(3 * 3 + 3, 15.5))
+    plt.title('Cluster Comparaison between MapReduce AP and AP')
+    plt.subplots_adjust(left=.02, right=.98, bottom=.001, top=.96, wspace=.6,
                         hspace=.01)
 
     plot_num = 1
@@ -120,9 +121,9 @@ def run_comparison(n_samples = 1500, seed=0):
             else:
                 y_pred = algorithm.predict(X)
 
-            plt.subplot(len(datasets), len(clustering_algorithms), plot_num)
+            plt.subplot(len(datasets), len(clustering_algorithms)+1, plot_num)
             if i_dataset == 0:
-                plt.title(name, size=18)
+                plt.title(name, size=15)
 
             colors = np.array(list(islice(cycle(['#377eb8', '#ff7f00', '#4daf4a',
                                                  '#f781bf', '#a65628', '#984ea3',
@@ -140,5 +141,58 @@ def run_comparison(n_samples = 1500, seed=0):
                      transform=plt.gca().transAxes, size=15,
                      horizontalalignment='right')
             plot_num += 1
+            
+        t0 = time.time()
+        
+        affinity_propagation_divided = cluster.AffinityPropagation(
+            damping=params['damping'], preference=params['preference'])
+        
+        ##### ADD the same AP with half the data to compare #####
+        
+        from numpy.random import choice
+        indices = choice([i for i in range(X.shape[0])],size=int(X.shape[0]/2), replace=False)
+        X_tronc = X[indices]
+
+        # catch warnings related to kneighbors_graph
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="the number of connected components of the " +
+                "connectivity matrix is [0-9]{1,2}" +
+                " > 1. Completing it to avoid stopping the tree early.",
+                category=UserWarning)
+            warnings.filterwarnings(
+                "ignore",
+                message="Graph is not fully connected, spectral embedding" +
+                " may not work as expected.",
+                category=UserWarning)
+            affinity_propagation_divided.fit(X_tronc)
+
+        t1 = time.time()
+        if hasattr(algorithm, 'labels_'):
+            y_pred = affinity_propagation_divided.labels_.astype(np.int)
+        else:
+            y_pred = affinity_propagation_divided.predict(X_tronc)
+
+        plt.subplot(len(datasets), len(clustering_algorithms)+1, plot_num)
+        if i_dataset == 0:
+            plt.title('AP with n_sample/2', size=15)
+
+        colors = np.array(list(islice(cycle(['#377eb8', '#ff7f00', '#4daf4a',
+                                             '#f781bf', '#a65628', '#984ea3',
+                                             '#999999', '#e41a1c', '#dede00']),
+                                      int(max(y_pred) + 1))))
+        # add black color for outliers (if any)
+        colors = np.append(colors, ["#000000"])
+        plt.scatter(X_tronc[:, 0], X_tronc[:, 1], s=10, color=colors[y_pred])
+
+        plt.xlim(-2.5, 2.5)
+        plt.ylim(-2.5, 2.5)
+        plt.xticks(())
+        plt.yticks(())
+        plt.text(.99, .01, ('%.2fs' % (t1 - t0)).lstrip('0'),
+                 transform=plt.gca().transAxes, size=15,
+                 horizontalalignment='right')
+        plot_num += 1
 
     plt.show()
