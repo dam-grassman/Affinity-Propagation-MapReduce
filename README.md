@@ -8,10 +8,10 @@ In this GitHub, we will implement two differents algorithms of Affinity Propagat
 
 Here are some teaser :
 
-### Run Time comparaison between the standard and map reduce version of the affinity propagation algo
+### Run Time comparaison between the standard and map reduce version of the Affinity Propagation algo
 
 ![Comparaison](img/comparison.png)
 
-### Color Clustering on the picture of a Mandrill
+### Color Clustering on the picture of a Mandrill using Hierarchical Affinity Propagation
 
 ![Mandrill](img/madrill_result_hap.png)
