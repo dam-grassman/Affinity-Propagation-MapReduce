@@ -8,10 +8,11 @@ import multiprocessing
 class MRHAP():  
     
     #Same initialization as in the standard HAP
-    def __init__(self, data, L, N, num_workers):
+    def __init__(self, data, L, N, n_jobs):
         self.L = L
         self.N =  N
         self.data = data
+        self.n_jobs = n_jobs
         self.affinity_matrix = -euclidean_distances(data, squared=True)
         preference =  np.random.rand(N)*(-10**6)
         np.fill_diagonal(self.affinity_matrix, preference)
@@ -31,7 +32,7 @@ class MRHAP():
         self.C = np.zeros((L,N), dtype = 'float32')
         self.E = np.zeros((L,N), dtype = 'float32')
 
-        self.pool = multiprocessing.Pool(num_workers)
+        self.pool = multiprocessing.Pool(n_jobs)
         
         
     def __getstate__(self):
@@ -247,12 +248,13 @@ class MRHAP():
                 self.R[l,i:k,:] = value.T.copy()
             else : 
                 print('Wrong Tensor key')
+                
 ############################################### TRAIN-FIT ##################################@#######################
 
-    # changer dans le chunk iterator : faire 2 cas node ou exemplar  - pour eviter la boucle sur les tensors 
-    def mapreduce_training(self, nb_chunk, nb_iteration):
+    # changer dans le chunk iterator : faire 2 cas node (True) ou exemplar (False) - pour eviter la boucle sur les tensors 
+    def mapreduce_training(self, nb_iteration):
         
-        
+        nb_chunk = self.n_jobs
         for iteration in range(nb_iteration):
             
             map_responsesA = self.pool.map(self.mapper_A,self.ChunkIterator(nb_chunk, False))
@@ -266,6 +268,6 @@ class MRHAP():
             print(len(Counter(self.E[l,:] ).keys()))
     
     # Pour lancer le mapreduce training, sans que ça renvoie rien 
-    def fit(self, nb_chunk, nb_iteration):
-            self.mapreduce_training(nb_chunk, nb_iteration)
+    def fit(self, nb_iteration):
+            self.mapreduce_training(nb_iteration)
             
