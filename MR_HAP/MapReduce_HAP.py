@@ -1,11 +1,13 @@
 import numpy as np
 from math import ceil
 from sklearn.metrics import euclidean_distances
+from collections import Counter
 import multiprocessing
 
 
-class MRHAP():   
-    #même init que dans HAP
+class MRHAP():  
+    
+    #Same initialization as in the standard HAP
     def __init__(self, data, L, N, num_workers):
         self.L = L
         self.N =  N
@@ -20,21 +22,15 @@ class MRHAP():
         for l in range(self.L) :
             self.S[l,: ,:] = self.affinity_matrix
         self.R = np.zeros((L,N,N), dtype = 'float32')
-        #R[0,: ,:] = np.array([[1,2,3],[4,5,6], [7,8,9]])
 
         self.damping = 0.5
         self.kappa = 0.1
 
         self.TAU = np.multiply(np.ones((L,N), dtype = 'float32'), np.inf)
-        #print(tau)
         self.PHI = np.zeros((L,N), dtype = 'float32')
         self.C = np.zeros((L,N), dtype = 'float32')
         self.E = np.zeros((L,N), dtype = 'float32')
 
-        #self.tmp = np.zeros((N,N), dtype = 'float32')
-        #self.tmp2 = np.zeros((N,N), dtype = 'float32')
-
-        #self.Y = np.zeros(N, dtype = 'float32')   
         self.pool = multiprocessing.Pool(num_workers)
         
         
@@ -62,14 +58,9 @@ class MRHAP():
   
 
     def update_c(self,i,k,l):
-        ### NOT SURE HERE
         tmp = np.add(self.A[l, i:k, :], self.R[l, i:k, :])
-        #print(tmp.shape)
         return np.max(tmp, axis=1)
-    
-    #def update_c(self,j,k, l):
-    #    tmp = np.add(self.A[l, :, j:k], self.R[l, :, j:k])
-    #    return np.max(tmp, axis=1)
+
     
     def update_r(self,j,k,l): 
         #nodes   
@@ -121,7 +112,6 @@ class MRHAP():
 
         #Y2 at the very end !! It does not depend on i except for Y2 -> tmp - Y2 at the end only !!
         
-        ### TRY ###
         tmp0[i:k] =  np.add(tmp0[i:k],Y)
         
         #np.add(tmp0, Y, tmp0)
@@ -153,7 +143,6 @@ class MRHAP():
         return np.max(tmp, axis=1)
     
 
-    
 #################################### MAPPING Functions ###########################################################
 
     # MAPPER  which update tau, c and rho - Example-based format as input
@@ -199,6 +188,10 @@ class MRHAP():
             
     # Appelle l'iterateur à chaque fois sans stocker     
     def ChunkIterator(self, nb_chunk, node_format):
+        
+        ''' Chunk generator for the mapper function. Data is yiel depending 
+        on if it should be exemplar or nodes-based as stated in the article. '''
+        
         N = self.N
         chunk_size = ceil(N/nb_chunk)
         previous_index = 0
@@ -232,7 +225,6 @@ class MRHAP():
                 
                 
     def partitionA(self, mapped_values):
-        
 
         for key, value in mapped_values:
             
@@ -263,42 +255,15 @@ class MRHAP():
         
         for iteration in range(nb_iteration):
             
-            #for chunk in self.ChunkIterator(nb_chunk, False):
-            #    up = self.mapper_A(chunk)
-                #print(up)
-            #    self.partitionA([up])
-            #print('A')
-            #for chunk in self.ChunkIterator(nb_chunk, True):
-            #    self.partitionA([self.mapper_B(chunk)])
-        
-                
-            #print('it :', iteration)
-            #for l in range(self.L):
-            #    temp = np.add(self.A[l, :, :],self.R[l, :, :])
-            #    self.E[l,:] = np.argmax(temp, axis=1)
-            #    print(len(Counter(self.E[l,:] ).keys()))
-            #    if (len(Counter(self.E[l,:] ).keys())) < 10 :
-            #        print(Counter(self.E[l,:] ))
-
             map_responsesA = self.pool.map(self.mapper_A,self.ChunkIterator(nb_chunk, False))
-            print('A')
             self.partitionA(map_responsesA)
-            print('PARTITION A')
             map_responsesB = self.pool.map(self.mapper_B,self.ChunkIterator(nb_chunk, True))
             self.partitionA(map_responsesB)
-            #self.partitionA(itertools.chain(*map_responsesB)) 
-            print('PARTITION B')
+
         for l in range(self.L):
             temp = np.add(self.A[l, :, :],self.R[l, :, :])
-            print(temp)
-            print(np.argmax(temp, axis=1))
             self.E[l,:]  = np.argmax(temp, axis=1)
-        #map_responsesC = map(self.mapper_A,self.ChunkIterator(nb_chunk, node_format))
-        #print('C')
-        
-        #data = itertools.chain(*map_responsesA, *map_responsesB, *map_responsesC)
-        #data = itertools.chain(*map_responsesC)
-        return None
+            print(len(Counter(self.E[l,:] ).keys()))
     
     # Pour lancer le mapreduce training, sans que ça renvoie rien 
     def fit(self, nb_chunk, nb_iteration):
